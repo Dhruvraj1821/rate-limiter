@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from token_bucket import TokenBucket
 from sliding_window import SlidingWindowCounter
+from redis_token_bucket import allow as redis_token_bucket_allow
 
 app = FastAPI()
 
@@ -9,7 +10,7 @@ token_bucket_limiter = TokenBucket(capacity=5, refill_rate=1)
 
 sliding_window_limiter = SlidingWindowCounter(limit=5, window_seconds=10)
 
-STRATEGY = "sliding_window"
+STRATEGY = "redis_token_bucket"
 
 class CheckRequest(BaseModel):
     client_id: str
@@ -26,6 +27,8 @@ def health_check():
 def check_rate_limit(request: CheckRequest):
     if STRATEGY == "token_bucket":
         allowed = token_bucket_limiter.allow(request.client_id)
-    else:
+    elif STRATEGY == "sliding_window":
         allowed = sliding_window_limiter.allow(request.client_id)
+    else:
+        allowed = redis_token_bucket_allow(request.client_id)
     return CheckResponse(allowed=allowed)
