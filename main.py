@@ -1,7 +1,10 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
+from token_bucket import TokenBucket
 
 app = FastAPI()
+
+limiter = TokenBucket(capacity=5, refill_rate=1)
 
 class CheckRequest(BaseModel):
     client_id: str
@@ -16,4 +19,5 @@ def health_check():
 
 @app.post("/check", response_model=CheckResponse)
 def check_rate_limit(request: CheckRequest):
-    return CheckResponse(allowed=True)
+    allowed = limiter.allow(request.client_id)
+    return CheckResponse(allowed=allowed)
